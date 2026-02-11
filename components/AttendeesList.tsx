@@ -1,5 +1,6 @@
-import { Table, ScrollArea, Center, Stack, Text, Title, Button, Modal } from '@mantine/core';
-import { useState } from 'react';
+import { Table, ScrollArea, Center, Stack, Text, Title, Modal } from '@mantine/core';
+import { DataTable } from 'mantine-datatable';
+import { useMemo, useState } from 'react';
 import type { Attendee } from '@/utils/types';
 import { flattenObject, formatKeyForDisplay } from '@/utils/flatten';
 import { formatCellValue } from '@/utils/column-formatters';
@@ -11,6 +12,29 @@ interface AttendeesListProps {
 
 export default function AttendeesList({ attendees, selectedColumns = ['firstname', 'name', 'email', 'event_name'] }: AttendeesListProps) {
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
+
+  // Pré-calculer les données aplaties pour éviter de recalculer à chaque render
+  const records = useMemo(() => {
+    return attendees.map((attendee) => {
+      const flatData = flattenObject(attendee.raw);
+      const dataMap = Object.fromEntries(flatData.map(({ key, value }) => [key, value]));
+      return {
+        id: attendee.id,
+        _attendee: attendee,
+        ...dataMap,
+      };
+    });
+  }, [attendees]);
+
+  // Générer les colonnes dynamiquement
+  const columns = useMemo(() => {
+    return selectedColumns.map((column) => ({
+      accessor: column,
+      title: formatKeyForDisplay(column),
+      render: (record: Record<string, unknown>) => formatCellValue(column, record[column] ?? ''),
+    }));
+  }, [selectedColumns]);
+
   if (attendees.length === 0) {
     return (
       <Center h={200}>
@@ -24,48 +48,19 @@ export default function AttendeesList({ attendees, selectedColumns = ['firstname
     );
   }
 
-  const rows = attendees.map((attendee) => {
-    // Aplatir les données pour accéder à toutes les colonnes
-    const flatData = flattenObject(attendee.raw);
-    const dataMap = new Map(flatData.map(({ key, value }) => [key, value]));
-
-    return (
-      <Table.Tr key={attendee.id}>
-        {selectedColumns.map((column) => {
-          const rawValue = dataMap.get(column) || '';
-          const formattedValue = formatCellValue(column, rawValue);
-          return <Table.Td key={column}>{formattedValue}</Table.Td>;
-        })}
-        <Table.Td>
-          <Button
-            size="xs"
-            variant="light"
-            onClick={() => setSelectedAttendee(attendee)}
-          >
-            Détails
-          </Button>
-        </Table.Td>
-      </Table.Tr>
-    );
-  });
-
   return (
     <Stack gap="md">
       <Title order={3}>Participants ({attendees.length})</Title>
 
-      <ScrollArea>
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              {selectedColumns.map((column) => (
-                <Table.Th key={column}>{formatKeyForDisplay(column)}</Table.Th>
-              ))}
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>{rows}</Table.Tbody>
-        </Table>
-      </ScrollArea>
+      <DataTable
+        height={500}
+        withTableBorder
+        striped
+        highlightOnHover
+        records={records}
+        columns={columns}
+        onRowClick={({ record }) => setSelectedAttendee(record._attendee as Attendee)}
+      />
 
       {/* Modal de détails */}
       <Modal

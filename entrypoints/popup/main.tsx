@@ -4,6 +4,7 @@ import { MantineProvider } from "@mantine/core";
 import App from "./App.tsx";
 import { theme } from "@/theme";
 import "@mantine/core/styles.css";
+import "mantine-datatable/styles.css";
 import "./style.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
